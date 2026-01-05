@@ -61,8 +61,9 @@ class HabitListViewModel {
             ) else {
                 break
             }
-            
-            return streak
+			
+			currentDay = previousDay
         }
+		return streak
     }
 }
