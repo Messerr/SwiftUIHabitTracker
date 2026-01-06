@@ -56,24 +56,6 @@ class HabitListViewModel {
 		habits.removeAll { $0.id == id }
 		saveHabits()
 	}
-	
-    func toggleToday(for habit: Habit) {
-        guard let index = habits.firstIndex(of: habit) else { return }
-        
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        
-        if habits[index].completedDates.contains(where: {
-            calendar.isDate($0, inSameDayAs: today)
-        }) {
-            habits[index].completedDates.removeAll {
-                calendar.isDate($0, inSameDayAs: today)
-            }
-        } else {
-            habits[index].completedDates.append(today)
-        }
-		saveHabits()
-    }
     
     func isCompletedToday(_ habit: Habit) -> Bool {
 		progressToday(for: habit) >= habit.dailyGoal
