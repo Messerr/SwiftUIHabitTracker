@@ -14,24 +14,46 @@ struct ContentView: View {
     var body: some View {
 		NavigationStack {
 			List {
+				if vm.habits.isEmpty {
+					ContentUnavailableView(
+						"No Habits Yet",
+						systemImage: "checklist",
+						description: Text("Tap + to add your first habit")
+					)
+				}
 				ForEach(vm.habits) { habit in
-					HStack {
-						Text(habit.name)
-						
-						Spacer()
-						
-						if vm.isCompletedToday(habit) {
-							Image(systemName: "checkmark.circle.fill")
-								.foregroundStyle(.green)
-						}
+					NavigationLink {
+						HabitDetailView(
+							habitID: habit.id,
+							vm: vm
+						)
+					} label: {
+						HabitRowView(
+							habit: habit,
+							isCompletedToday: vm.isCompletedToday(habit),
+							streak: vm.currentStreak(for: habit),
+							onToggle: {
+								vm.toggleToday(for: habit)
+							}
+						)
 					}
-					.contentShape(Rectangle())
-					.onTapGesture {
-						vm.toggleToday(for: habit)
+					.swipeActions(edge: .trailing) {
+						Button {
+							vm.toggleToday(for: habit)
+						} label: {
+							Label(
+								vm.isCompletedToday(habit) ? "Undo" : "Complete",
+								systemImage: vm.isCompletedToday(habit)
+								? "arrow.uturn.left"
+								: "checkmark"
+							)
+						}
+						.tint(vm.isCompletedToday(habit) ? .orange : .green)
 					}
 				}
 			}
 			.navigationTitle("Habits")
+			.navigationBarTitleDisplayMode(.large)
 			.sheet(isPresented: $showingAddHabit) {
 				AddHabitView { name, notes in
 					vm.addHabit(name: name, notes: notes)
