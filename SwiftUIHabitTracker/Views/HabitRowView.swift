@@ -9,73 +9,47 @@ import SwiftUI
 
 struct HabitRowView: View {
 	let habit: Habit
-	let progressToday: Double
-	let isCompletedToday: Bool
-	let streak: Int
-	let onAddProgress: () -> Void
 	
-    var body: some View {
+	var body: some View {
 		HStack(spacing: 12) {
-			Button {
-				onAddProgress()
-			} label: {
-				Image(systemName: isCompletedToday
-					  ? "checkmark.circle.fill"
-					  : "plus.circle")
-				.font(.title2)
-				.foregroundColor(isCompletedToday ? .green : .primary)
-			}
-			.buttonStyle(.plain)
-			
 			VStack(alignment: .leading, spacing: 4) {
-				Text(habit.name)
+				Text(habit.category.displayName)
 					.font(.headline)
 				
-				Text("\(formattedProgress) / \(formattedGoal) \(habit.category.unit)")
-					.font(.headline)
+				Text(progressText)
+					.font(.subheadline)
 					.foregroundStyle(.secondary)
-				
-				if streak > 0 {
-					HStack(spacing: 4) {
-						Image(systemName: "flame.fill")
-							.foregroundStyle(.orange)
-						Text("\(streak) day streak")
-							.font(.caption)
-					}
-				}
 			}
 			
 			Spacer()
 			
+			Text("\(Int(habit.progressRatio() * 100))%")
+				.font(.headline)
+				.foregroundStyle(.blue)
 		}
 		.padding(.vertical, 6)
-    }
-	
-	private var formattedProgress: String {
-		habit.category.unit == "liters"
-		? String(format: "%.1f", progressToday)
-		: String(format: "%.0f", progressToday)
 	}
 	
-	private var formattedGoal: String {
-		habit.category.unit == "liters"
-		? String(format: "%.1f", habit.dailyGoal)
-		: String(format: "%.0f", habit.dailyGoal)
+	private var progressText: String {
+		let progress = habit.progressInCurrentPeriod()
+		let goal = habit.targetValue
+		
+		if habit.category.unit == "liters" {
+			return String(format: "%.1f / %.1f %@", progress, goal, habit.category.unit)
+		} else {
+			return String(format: "%.0f / %.0f %@", progress, goal, habit.category.unit)
+		}
 	}
 }
 
 #Preview {
 	let previewHabit = Habit(
 		category: .water,
-		name: "New Habit",
-		notes: "These are notes"
+		frequency: .everyDay,
+		period: .day,
+		targetValue: 2.0
 	)
 	
-    HabitRowView(
-		habit: previewHabit,
-		progressToday: 0.2,
-		isCompletedToday: false,
-		streak: 1,
-		onAddProgress: {}
-	)
+	HabitRowView(habit: previewHabit)
 }
+

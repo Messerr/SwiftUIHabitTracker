@@ -7,54 +7,108 @@
 
 import Foundation
 
-struct Habit: Identifiable, Codable, Equatable {
-    let id: UUID
+struct Habit: Identifiable, Codable {
+	let id: UUID
 	var category: HabitCategory
-    var name: String
-    var notes: String?
-    
-	var dailyGoal: Double
-	var progressByDate: [String: Double]
-    
+	var notes: String?
+	
+	var frequency: HabitFrequency
+	var period: HabitPeriod
+	var weekdays: Set<Weekday>
+	
+	var targetValue: Double
+	var progressByDate: [Date: Double]
+	
 	init(
 		id: UUID = UUID(),
 		category: HabitCategory,
-		name: String,
-		notes: String? = nil,
-		dailyGoal: Double? = nil,
-		progressByDate: [String: Double] = [:]
+		frequency: HabitFrequency,
+		period: HabitPeriod,
+		targetValue: Double,
+		weekdays: Set<Weekday> = [],
+		notes: String? = nil
 	) {
 		self.id = id
 		self.category = category
-		self.name = name
+		self.frequency = frequency
+		self.period = period
+		self.targetValue = targetValue
+		self.weekdays = weekdays
 		self.notes = notes
-		self.dailyGoal = dailyGoal ?? category.defaultGoal
-		self.progressByDate = progressByDate
+		self.progressByDate = [:]
+	}
+}
+
+extension Habit {
+	static func normalized(_ date: Date) -> Date {
+		Calendar.current.startOfDay(for: date)
 	}
 	
-	var progressByDay: [Date: Double] {
-		var result: [Date: Double] = [:]
-		let formatter = Habit.dateFormatter
+	mutating func addProgress(_ amount: Double, on date: Date = .now) {
+		let day = Self.normalized(date)
+		progressByDate[day, default: 0] += amount
+	}
+	
+	func currentPeriodRange(referenceDate: Date = .now) -> ClosedRange<Date> {
+		let calendar = Calendar.current
 		
-		for (key, value) in progressByDate {
-			if let date = formatter.date(from: key) {
-				result[date] = value
-			}
+		switch period {
+		case .day:
+			let start = calendar.startOfDay(for: referenceDate)
+			let end = calendar.date(byAdding: .day, value: 1, to: start)!
+			return start...end
+			
+		case .week:
+			let start = calendar.dateInterval(of: .weekOfYear, for: referenceDate)!.start
+			let end = calendar.date(byAdding: .day, value: 7, to: start)!
+			return start...end
+			
+		case .month:
+			let start = calendar.dateInterval(of: .month, for: referenceDate)!.start
+			let end = calendar.date(byAdding: .month, value: 1, to: start)!
+			return start...end
 		}
-		return result
+	}
+	
+	func progressInCurrentPeriod(referenceDate: Date = .now) -> Double {
+		let range = currentPeriodRange(referenceDate: referenceDate)
+		
+		return progressByDate
+			.filter { range.contains($0.key) }
+			.map(\.value)
+			.reduce(0, +)
+	}
+	
+	func progressRatio(referenceDate: Date = .now) -> Double {
+		min(progressInCurrentPeriod(referenceDate: referenceDate) / targetValue, 1)
+	}
+	
+	func isScheduled(on date: Date) -> Bool {
+		let calendar = Calendar.current
+		
+		switch frequency {
+		case .everyDay:
+			return true
+			
+		case .everyOtherDay:
+			let anchor = progressByDate.keys.sorted().first
+			?? calendar.startOfDay(for: Date())
+			
+			let daysBetween = calendar.dateComponents(
+				[.day],
+				from: calendar.startOfDay(for: anchor),
+				to: calendar.startOfDay(for: date)
+			).day ?? 0
+			
+			return daysBetween % 2 == 0
+			
+		case .weekly:
+			let weekday = Weekday(rawValue: calendar.component(.weekday, from: date))
+			return weekday.map { weekdays.contains($0) } ?? false
+			
+		case .monthly:
+			return calendar.component(.day, from: date) == 1
+		}
 	}
 
-	static let dateFormatter: DateFormatter = {
-		let formatter = DateFormatter()
-		formatter.calendar = .current
-		formatter.locale = .current
-		formatter.timeZone = .current
-		formatter.dateFormat = "yyyy-MM-dd"
-		return formatter
-	}()
-
-	mutating func addProgress(on date: Date, amount: Double) {
-		let key = Habit.dateFormatter.string(from: date)
-		progressByDate[key, default: 0] += amount
-	}
 }

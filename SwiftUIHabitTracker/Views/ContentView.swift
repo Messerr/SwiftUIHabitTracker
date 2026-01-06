@@ -10,9 +10,28 @@ import SwiftUI
 struct ContentView: View {
 	@State private var vm = HabitListViewModel()
 	@State private var showingAddHabit = false
+	@State private var selectedDate = Date()
+	private var filteredHabits: some View {
+		ForEach(vm.habitsScheduled(on: selectedDate)) { habit in
+			NavigationLink {
+				HabitProgressView(
+					habitID: habit.id,
+					vm: vm
+				)
+			} label: {
+				HabitRowView(habit: habit)
+			}
+		}
+	}
 	
 	var body: some View {
 		NavigationStack {
+			WeekStripView(
+				selectedDate: $selectedDate,
+				hasScheduledHabits: { date in
+					!vm.habitsScheduled(on: date).isEmpty
+				}
+			)
 			List {
 				if vm.habits.isEmpty {
 					ContentUnavailableView(
@@ -22,27 +41,7 @@ struct ContentView: View {
 					)
 				}
 				
-				ForEach(vm.habits) { habit in
-					NavigationLink {
-						HabitDetailView(
-							habitID: habit.id,
-							vm: vm
-						)
-					} label: {
-						HabitRowView(
-							habit: habit,
-							progressToday: vm.progressToday(for: habit),
-							isCompletedToday: vm.isCompletedToday(habit),
-							streak: vm.currentStreak(for: habit),
-							onAddProgress: {
-								vm.addProgress(
-									for: habit,
-									amount: habit.category.stepSize
-								)
-							}
-						)
-					}
-				}
+				filteredHabits
 			}
 			.navigationTitle("Habits")
 			.navigationBarTitleDisplayMode(.large)
@@ -54,12 +53,14 @@ struct ContentView: View {
 				}
 			}
 			.sheet(isPresented: $showingAddHabit) {
-				AddHabitView { category, name, notes, dailyGoal in
+				AddHabitView { notes, category, frequency, period, targetValue, weekdays in
 					vm.addHabit(
 						category: category,
-						name: name,
-						notes: notes,
-						dailyGoal: dailyGoal
+						frequency: frequency,
+						period: period,
+						targetValue: targetValue,
+						weekdays: weekdays,
+						notes: notes
 					)
 					showingAddHabit = false
 				}
@@ -71,4 +72,5 @@ struct ContentView: View {
 #Preview {
 	ContentView()
 }
+
 
