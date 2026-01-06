@@ -9,9 +9,9 @@ import SwiftUI
 
 struct ContentView: View {
 	@State private var vm = HabitListViewModel()
-	@State private var showingAddHabit: Bool = false
+	@State private var showingAddHabit = false
 	
-    var body: some View {
+	var body: some View {
 		NavigationStack {
 			List {
 				if vm.habits.isEmpty {
@@ -21,6 +21,7 @@ struct ContentView: View {
 						description: Text("Tap + to add your first habit")
 					)
 				}
+				
 				ForEach(vm.habits) { habit in
 					NavigationLink {
 						HabitDetailView(
@@ -30,36 +31,21 @@ struct ContentView: View {
 					} label: {
 						HabitRowView(
 							habit: habit,
+							progressToday: vm.progressToday(for: habit),
 							isCompletedToday: vm.isCompletedToday(habit),
 							streak: vm.currentStreak(for: habit),
-							onToggle: {
-								vm.toggleToday(for: habit)
+							onAddProgress: {
+								vm.addProgress(
+									for: habit,
+									amount: habit.category.stepSize
+								)
 							}
 						)
-					}
-					.swipeActions(edge: .trailing) {
-						Button {
-							vm.toggleToday(for: habit)
-						} label: {
-							Label(
-								vm.isCompletedToday(habit) ? "Undo" : "Complete",
-								systemImage: vm.isCompletedToday(habit)
-								? "arrow.uturn.left"
-								: "checkmark"
-							)
-						}
-						.tint(vm.isCompletedToday(habit) ? .orange : .green)
 					}
 				}
 			}
 			.navigationTitle("Habits")
 			.navigationBarTitleDisplayMode(.large)
-			.sheet(isPresented: $showingAddHabit) {
-				AddHabitView { name, notes in
-					vm.addHabit(name: name, notes: notes)
-					showingAddHabit = false
-				}
-			}
 			.toolbar {
 				Button {
 					showingAddHabit = true
@@ -67,10 +53,22 @@ struct ContentView: View {
 					Image(systemName: "plus")
 				}
 			}
+			.sheet(isPresented: $showingAddHabit) {
+				AddHabitView { category, name, notes, dailyGoal in
+					vm.addHabit(
+						category: category,
+						name: name,
+						notes: notes,
+						dailyGoal: dailyGoal
+					)
+					showingAddHabit = false
+				}
+			}
 		}
-    }
+	}
 }
 
 #Preview {
-    ContentView()
+	ContentView()
 }
+

@@ -7,14 +7,14 @@
 
 import Foundation
 
-enum HabitCategory: String, Codable, CaseIterable, Identifiable {
+enum HabitCategory: String, CaseIterable, Identifiable, Hashable, Codable {
 	case water
 	case walking
 	case meditation
 	case exercise
 	case reading
 	
-	var id: String { rawValue }
+	var id: Self { self }
 }
 extension HabitCategory {
 	var displayName: String {
@@ -51,6 +51,21 @@ extension HabitCategory {
 		case .water: return 0.25
 		case .walking: return 500
 		default: return 5
+		}
+	}
+	
+	var goalRange: ClosedRange<Double> {
+		switch self {
+		case .water:
+			return 0.5...5.0
+		case .walking:
+			return 1_000...20_000
+		case .meditation:
+			return 5...60
+		case .exercise:
+			return 10...120
+		case .reading:
+			return 5...120
 		}
 	}
 }

@@ -10,25 +10,25 @@ import SwiftUI
 struct HabitDetailView: View {
 	let habitID: UUID
 	let vm: HabitListViewModel
+	
 	@State private var isEditing = false
 	@State private var editedName = ""
 	@State private var editedNotes = ""
 	@State private var showDeletionConfirmation = false
+	
 	@Environment(\.dismiss) private var dismiss
 	
 	private var habit: Habit? {
 		vm.habits.first { $0.id == habitID }
 	}
 	
-	private func isCompletedToday(_ habit: Habit) -> Bool {
-		vm.isCompletedToday(habit)
-	}
-	
 	var body: some View {
-		if let habit {
-			detailContent(for: habit)
-		} else {
-			Text("Habit not found")
+		Group {
+			if let habit {
+				detailContent(for: habit)
+			} else {
+				Text("Habit not found")
+			}
 		}
 	}
 	
@@ -38,9 +38,13 @@ struct HabitDetailView: View {
 		editedName != habit.name ||
 		editedNotes != (habit.notes ?? "")
 		
+		let history = habit.progressByDate
+			.sorted { $0.key > $1.key }
+		
 		ScrollView {
 			VStack(alignment: .leading, spacing: 16) {
 				
+				// MARK: - Title
 				if isEditing {
 					TextField("Habit name", text: $editedName)
 						.font(.largeTitle)
@@ -50,8 +54,13 @@ struct HabitDetailView: View {
 						.font(.largeTitle)
 						.fontWeight(.bold)
 				}
-
 				
+				// MARK: - Goal
+				Text("Daily goal: \(formatted(habit.dailyGoal)) \(habit.category.unit)")
+					.font(.subheadline)
+					.foregroundStyle(.secondary)
+				
+				// MARK: - Notes
 				if isEditing {
 					TextEditor(text: $editedNotes)
 						.frame(minHeight: 100)
@@ -63,8 +72,8 @@ struct HabitDetailView: View {
 					Text(notes)
 						.foregroundStyle(.secondary)
 				}
-
 				
+				// MARK: - Streak
 				let streak = vm.currentStreak(for: habit)
 				if streak > 0 {
 					HStack {
@@ -77,18 +86,23 @@ struct HabitDetailView: View {
 				
 				Divider()
 				
+				// MARK: - History
 				VStack(alignment: .leading, spacing: 8) {
 					Text("Completion History")
 						.font(.headline)
 					
-					if habit.completedDates.isEmpty {
-						Text("No completions yet")
+					if history.isEmpty {
+						Text("No progress yet")
 							.foregroundStyle(.secondary)
 					} else {
-						ForEach(habit.completedDates.sorted(by: >), id: \.self) { date in
-							Text(date, format: .dateTime.month().day().year())
+						ForEach(history.sorted(by: { $0.key > $1.key }), id: \.key) { key, progress in
+							if let date = Habit.dateFormatter.date(from: key) {
+								Text(
+									"\(date, format: .dateTime.month().day().year()) – \(formatted(progress)) \(habit.category.unit)"
+								)
 								.font(.caption)
 								.foregroundStyle(.secondary)
+							}
 						}
 					}
 				}
@@ -104,6 +118,8 @@ struct HabitDetailView: View {
 		.navigationTitle("Habit")
 		.navigationBarTitleDisplayMode(.inline)
 		.toolbar {
+			
+			// MARK: - Edit / Save
 			ToolbarItem(placement: .topBarLeading) {
 				if isEditing {
 					Button("Cancel") {
@@ -111,7 +127,8 @@ struct HabitDetailView: View {
 					}
 				}
 			}
-			ToolbarItem {
+			
+			ToolbarItem(placement: .topBarTrailing) {
 				if isEditing {
 					Button("Save") {
 						vm.updateHabit(
@@ -121,7 +138,10 @@ struct HabitDetailView: View {
 						)
 						isEditing = false
 					}
-					.disabled(editedName.trimmingCharacters(in: .whitespaces).isEmpty || !hasChanges)
+					.disabled(
+						editedName.trimmingCharacters(in: .whitespaces).isEmpty ||
+						!hasChanges
+					)
 				} else {
 					Button("Edit") {
 						editedName = habit.name
@@ -130,19 +150,24 @@ struct HabitDetailView: View {
 					}
 				}
 			}
-		}
-		.toolbar {
+			
+			// MARK: - Bottom actions
 			ToolbarItemGroup(placement: .bottomBar) {
+				
 				Button {
-					vm.toggleToday(for: habit)
+					vm.addProgress(
+						for: habit,
+						amount: habit.category.stepSize
+					)
 				} label: {
 					Label(
-						isCompletedToday(habit) ? "Undo Today" : "Complete Today",
-						systemImage: isCompletedToday(habit)
-						? "arrow.uturn.left"
-						: "checkmark.circle.fill"
+						vm.isCompletedToday(habit) ? "Completed Today" : "Add Progress",
+						systemImage: vm.isCompletedToday(habit)
+						? "checkmark.circle.fill"
+						: "plus.circle"
 					)
 				}
+				.disabled(vm.isCompletedToday(habit))
 				
 				Spacer()
 				
@@ -159,9 +184,16 @@ struct HabitDetailView: View {
 				dismiss()
 			}
 			Button("Cancel", role: .cancel) { }
-			} message: {
+		} message: {
 			Text("This action cannot be undone.")
 		}
+	}
+	
+	// MARK: - Formatting
+	private func formatted(_ value: Double) -> String {
+		habit?.category.unit == "liters"
+		? String(format: "%.1f", value)
+		: String(format: "%.0f", value)
 	}
 }
 
@@ -173,3 +205,4 @@ struct HabitDetailView: View {
 		)
 	}
 }
+
